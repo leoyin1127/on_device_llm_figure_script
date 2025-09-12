@@ -131,7 +131,7 @@ def make_base_figure(theta_labels: List[str], width: int = 1900, height: int = 1
                     showline=False,
                     ticks="",
                     gridcolor="rgba(0,0,0,0.15)",
-                    tickvals=[0, 20, 40, 60, 80, 100],
+                    tickvals=[0, 20, 40, 60, 80],
                     range=[0, 100],
                     tickfont=dict(size=11),
                     angle=90,
