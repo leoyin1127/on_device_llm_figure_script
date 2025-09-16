@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import re
+from pathlib import Path
 
 def parse_nmed_csv(filename):
     """Parse NMED CSV file and extract scores properly"""
@@ -60,7 +61,7 @@ def parse_nmed_csv(filename):
     
     return model_errors
 
-def create_violin_plot(model_errors, title, filename):
+def create_violin_plot(model_errors, title, filename, output_dir):
     """Create violin plot for a single dataset"""
     # Create series and values lists following the reference format
     series = []
@@ -109,23 +110,31 @@ def create_violin_plot(model_errors, title, filename):
     fig.update_layout(margin=dict(l=0, r=0, b=0, t=25))
 
     # Save the plot following reference format
-    fig.write_image(filename, width=1400, height=550, scale=1)
+    output_path = output_dir / filename
+    fig.write_image(str(output_path), width=1400, height=550, scale=1)
     
-    return len(values), model_errors
+    return len(values), model_errors, output_path
+
+# Set up paths
+data_dir = Path(__file__).parent / "data"
+output_dir = Path(__file__).parent / "output"
+output_dir.mkdir(parents=True, exist_ok=True)
 
 # Process diagnosis data
 print("Loading and parsing diagnosis data...")
-diagnosis_model_errors = parse_nmed_csv("OSS Benchmarking Results - NMED Diagnosis.csv")
+diagnosis_csv = data_dir / "OSS Benchmarking Results - NMED Diagnosis.csv"
+diagnosis_model_errors = parse_nmed_csv(str(diagnosis_csv))
 
 print("Creating diagnosis violin plot...")
-diagnosis_count, diagnosis_errors = create_violin_plot(diagnosis_model_errors, "Diagnosis", "nmed_diagnosis_violin.png")
+diagnosis_count, diagnosis_errors, diagnosis_output = create_violin_plot(diagnosis_model_errors, "Diagnosis", "nmed_diagnosis_violin.png", output_dir)
 
 # Process treatment data  
 print("Loading and parsing treatment data...")
-treatment_model_errors = parse_nmed_csv("OSS Benchmarking Results - NMED Treatment.csv")
+treatment_csv = data_dir / "OSS Benchmarking Results - NMED Treatment.csv"
+treatment_model_errors = parse_nmed_csv(str(treatment_csv))
 
 print("Creating treatment violin plot...")
-treatment_count, treatment_errors = create_violin_plot(treatment_model_errors, "Treatment", "nmed_treatment_violin.png")
+treatment_count, treatment_errors, treatment_output = create_violin_plot(treatment_model_errors, "Treatment", "nmed_treatment_violin.png", output_dir)
 
 # Display summary statistics
 print(f"\n=== DIAGNOSIS DATA ===")
@@ -141,8 +150,8 @@ for model, errors in treatment_errors.items():
         print(f"{model}: Count: {len(errors)}, Mean: {np.mean(errors):.3f}, Std: {np.std(errors):.3f}")
 
 print(f"\nGenerated files:")
-print(f"- nmed_diagnosis_violin.png")
-print(f"- nmed_treatment_violin.png")
+print(f"- {diagnosis_output}")
+print(f"- {treatment_output}")
 
 # Uncomment to show plot interactively
 # fig.show()

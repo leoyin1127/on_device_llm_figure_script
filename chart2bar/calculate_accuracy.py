@@ -252,10 +252,10 @@ def save_results_to_csv(results: Dict[str, Dict], output_path: str):
 def main():
     parser = argparse.ArgumentParser(description='Calculate exact match accuracy for model predictions')
     parser.add_argument('--input', '-i', type=str, 
-                       default='OSS Benchmarking Results - Eurorad.csv',
+                       default='data/OSS Benchmarking Results - Eurorad.csv',
                        help='Input CSV file path')
     parser.add_argument('--output', '-o', type=str,
-                       default='accuracy_results.csv', 
+                       default='output/accuracy_results.csv', 
                        help='Output CSV file path for results')
     parser.add_argument('--gt-column', type=str, default='FinalDiagnosis',
                        help='Ground truth column name')
@@ -268,6 +268,9 @@ def main():
     csv_path = Path(args.input)
     if not csv_path.is_absolute():
         csv_path = Path(__file__).parent / csv_path
+    
+    # Ensure parent directory exists for input
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
     
     # Load original data for comparison
     original_df = pd.read_csv(csv_path)
@@ -297,6 +300,9 @@ def main():
     output_path = Path(args.output)
     if not output_path.is_absolute():
         output_path = Path(__file__).parent / output_path
+    
+    # Ensure output directory exists
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     
     save_results_to_csv(results, output_path)
 

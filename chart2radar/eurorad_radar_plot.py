@@ -9,7 +9,8 @@ sys.path.append(str(Path(__file__).parent))
 from radar_style import make_base_figure, color_pair, legend_label
 
 # Read the Eurorad CSV data
-df = pd.read_csv('chart2radar/data/OSS Benchmarking Results - Eurorad.csv')
+data_path = Path(__file__).parent / 'data' / 'OSS Benchmarking Results - Eurorad.csv'
+df = pd.read_csv(data_path)
 
 # Get model columns (excluding metadata columns)
 metadata_cols = ['case_id', 'Section', 'OriginalDescription', 'PostDescription', 
@@ -37,43 +38,43 @@ for section in valid_sections:
 
 # Group models by base type and calculate average across versions
 model_groups = {
-    'GPT-5': [],
-    'ChatGPT-4o': [],
-    'DeepSeek': [],
-    'Qwen3-235b': [],
-    'OSS-20B (L)': [],
-    'OSS-20B (M)': [],
-    'OSS-20B (H)': [],
-    'OSS-120B (L)': [],
-    'OSS-120B (M)': [],
-    'OSS-120B (H)': []
+    'gpt-5': [],
+    'gpt-o4-mini': [],
+    'DeepSeek-R1-0528': [],
+    'Qwen3-235B': [],
+    'gpt-oss-20B (L)': [],
+    'gpt-oss-20B (M)': [],
+    'gpt-oss-20B (H)': [],
+    'gpt-oss-120B (L)': [],
+    'gpt-oss-120B (M)': [],
+    'gpt-oss-120B (H)': []
 }
 
 # Categorize each model column
 for col in model_cols:
     col_lower = col.lower()
     if 'gpt-5' in col_lower:
-        model_groups['GPT-5'].append(col)
-    elif 'chatgpt-4o' in col_lower or 'chatgpt4o' in col_lower:
-        model_groups['ChatGPT-4o'].append(col)
+        model_groups['gpt-5'].append(col)
+    elif 'o4-mini' in col_lower:
+        model_groups['gpt-o4-mini'].append(col)
     elif 'deepseek' in col_lower:
-        model_groups['DeepSeek'].append(col)
+        model_groups['DeepSeek-R1-0528'].append(col)
     elif 'qwen3' in col_lower or 'qwen-3' in col_lower:
-        model_groups['Qwen3-235b'].append(col)
+        model_groups['Qwen3-235B'].append(col)
     elif 'oss-20b' in col_lower or 'oss20b' in col_lower:
         if '(l)' in col_lower:
-            model_groups['OSS-20B (L)'].append(col)
+            model_groups['gpt-oss-20B (L)'].append(col)
         elif '(m)' in col_lower:
-            model_groups['OSS-20B (M)'].append(col)
+            model_groups['gpt-oss-20B (M)'].append(col)
         elif '(h)' in col_lower:
-            model_groups['OSS-20B (H)'].append(col)
+            model_groups['gpt-oss-20B (H)'].append(col)
     elif 'oss-120b' in col_lower or 'oss120b' in col_lower:
         if '(l)' in col_lower:
-            model_groups['OSS-120B (L)'].append(col)
+            model_groups['gpt-oss-120B (L)'].append(col)
         elif '(m)' in col_lower:
-            model_groups['OSS-120B (M)'].append(col)
+            model_groups['gpt-oss-120B (M)'].append(col)
         elif '(h)' in col_lower:
-            model_groups['OSS-120B (H)'].append(col)
+            model_groups['gpt-oss-120B (H)'].append(col)
 
 avg_accuracy_by_group = {}
 sections = list(accuracy_by_section.keys())
@@ -121,13 +122,16 @@ for group_name, accuracies in avg_accuracy_by_group.items():
 fig.update_layout(title=None)
 
 # Create output directory if it doesn't exist
-os.makedirs('chart2radar/output', exist_ok=True)
+output_dir = Path(__file__).parent / 'output'
+output_dir.mkdir(parents=True, exist_ok=True)
 
 # Save the figure
-fig.write_image("chart2radar/output/eurorad_radar_plot.png", scale=3, engine="kaleido")
+output_png = output_dir / "eurorad_radar_plot.png"
+output_html = output_dir / "eurorad_radar_plot.html"
+fig.write_image(str(output_png), scale=3, engine="kaleido")
 
 # Also save as interactive HTML
-fig.write_html("chart2radar/output/eurorad_radar_plot.html")
+fig.write_html(str(output_html))
 
 # Print summary statistics
 print("\n=== Model Performance Summary (Eurorad) ===")
@@ -145,5 +149,5 @@ sorted_groups = sorted(overall_avg.items(), key=lambda x: x[1], reverse=True)
 for rank, (group, avg_acc) in enumerate(sorted_groups, 1):
     print(f"{rank}. {group}: {avg_acc:.2f}%")
 
-print("\nRadar plot saved to: chart2radar/output/eurorad_radar_plot.png")
-print("Interactive version saved to: chart2radar/output/eurorad_radar_plot.html")
+print(f"\nRadar plot saved to: {output_png}")
+print(f"Interactive version saved to: {output_html}")

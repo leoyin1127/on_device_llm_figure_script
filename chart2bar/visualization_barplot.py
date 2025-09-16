@@ -2,9 +2,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import os
+from pathlib import Path
 
 # Read the OSS Benchmarking Results CSV
-df = pd.read_csv("OSS Benchmarking Results - Ophthalmology.csv")
+data_path = Path(__file__).parent / "data" / "OSS Benchmarking Results - Ophthalmology.csv"
+df = pd.read_csv(data_path)
 
 # Extract the last row which contains the performance percentages
 performance_row = df.iloc[-1]
@@ -26,22 +29,22 @@ perf_df = pd.DataFrame(performance_data)
 # Group models by base type and extract version info
 def categorize_model(model_name):
     model_lower = model_name.lower()
-    if 'gpt-5' in model_lower:
-        return 'GPT-5', model_name.split()[-1] if 'v' in model_name else 'v1'
-    elif 'chatgpt-4o' in model_lower or 'chatgpt4o' in model_lower:
-        return 'ChatGPT-4o', model_name.split()[-1] if 'v' in model_name else 'v1'
+    if 'gpt5' in model_lower or 'gpt-5' in model_lower:
+        return 'gpt-5', model_name.split('-')[-1] if '-' in model_name else 'v1'
+    elif 'o4-mini' in model_lower:
+        return 'gpt-o4-mini', model_name.split('-')[-1] if '-' in model_name else 'v1'
     elif 'deepseek' in model_lower:
-        return 'DeepSeek', model_name.split()[-1] if 'v' in model_name else 'v1'
+        return 'DeepSeek-R1-0528', model_name.split()[-1] if 'v' in model_name else 'v1'
     elif 'qwen3' in model_lower or 'qwen-3' in model_lower:
-        return 'Qwen3', model_name.split()[-1] if 'v' in model_name else 'v1'
+        return 'Qwen3-235B', model_name.split()[-1] if 'v' in model_name else 'v1'
     elif 'oss-20b' in model_lower or 'oss20b' in model_lower:
         config = 'L' if '(L)' in model_name else 'M' if '(M)' in model_name else 'H'
         version = model_name.split()[-1] if 'v' in model_name else 'v1'
-        return f'OSS-20B ({config})', version
+        return f'gpt-oss-20B ({config})', version
     elif 'oss-120b' in model_lower or 'oss120b' in model_lower:
         config = 'L' if '(L)' in model_name else 'M' if '(M)' in model_name else 'H'
         version = model_name.split()[-1] if 'v' in model_name else 'v1'
-        return f'OSS-120B ({config})', version
+        return f'gpt-oss-120B ({config})', version
     else:
         return 'Other', 'v1'
 
@@ -51,23 +54,27 @@ perf_df[['model_group', 'version']] = perf_df['model'].apply(lambda x: pd.Series
 group_stats = perf_df.groupby('model_group')['performance'].agg(['mean', 'std']).fillna(0)
 
 # Sort groups for consistent ordering - group OSS models together
-group_order = ['GPT-5', 'ChatGPT-4o', 'DeepSeek', 'Qwen3', 'OSS-20B (L)', 'OSS-20B (M)', 'OSS-20B (H)', 
-               'OSS-120B (L)', 'OSS-120B (M)', 'OSS-120B (H)']
+group_order = ['gpt-5', 'gpt-o4-mini', 'DeepSeek-R1-0528', 'Qwen3-235B', 'gpt-oss-20B (L)', 'gpt-oss-20B (M)', 'gpt-oss-20B (H)', 
+               'gpt-oss-120B (L)', 'gpt-oss-120B (M)', 'gpt-oss-120B (H)']
 group_stats = group_stats.reindex([g for g in group_order if g in group_stats.index])
 
 # Create color mapping by model family
 color_map = {}
-gpt_groups = [g for g in group_stats.index if 'GPT' in g or 'ChatGPT' in g]
+gpt5_groups = [g for g in group_stats.index if g == 'gpt-5']
+gpt_o4_groups = [g for g in group_stats.index if g == 'gpt-o4-mini']
 deepseek_groups = [g for g in group_stats.index if 'DeepSeek' in g]
 qwen_groups = [g for g in group_stats.index if 'Qwen' in g]
-oss20b_groups = [g for g in group_stats.index if 'OSS-20B' in g]
-oss120b_groups = [g for g in group_stats.index if 'OSS-120B' in g]
+oss20b_groups = [g for g in group_stats.index if 'oss-20B' in g]
+oss120b_groups = [g for g in group_stats.index if 'oss-120B' in g]
 
 # Generate colors for each family
-if gpt_groups:
-    blues = plt.colormaps.get_cmap("Blues").resampled(len(gpt_groups) + 2)
-    for i, group in enumerate(gpt_groups):
-        color_map[group] = blues(i + 1)
+if gpt5_groups:
+    for group in gpt5_groups:
+        color_map[group] = 'lightblue'  # Light blue for GPT-5
+
+if gpt_o4_groups:
+    for group in gpt_o4_groups:
+        color_map[group] = (101/255, 151/255, 197/255)  # Custom blue for o4-mini
 
 if deepseek_groups:
     reds = plt.colormaps.get_cmap("Reds").resampled(len(deepseek_groups) + 2)
@@ -99,8 +106,8 @@ for i, group_name in enumerate(group_names):
         prev_group = group_names[i-1]
         
         # Tight spacing within OSS model variants (0.6 instead of 1.0)
-        if ('OSS-20B' in prev_group and 'OSS-20B' in group_name) or \
-           ('OSS-120B' in prev_group and 'OSS-120B' in group_name):
+        if ('oss-20B' in prev_group and 'oss-20B' in group_name) or \
+           ('oss-120B' in prev_group and 'oss-120B' in group_name):
             current_pos += 0.6
         # Normal spacing for all other transitions
         else:
@@ -113,7 +120,7 @@ x_positions = np.array(x_positions)
 # Define different bar widths for visual grouping
 bar_widths = []
 for group in group_names:
-    if 'OSS-20B' in group or 'OSS-120B' in group:
+    if 'oss-20B' in group or 'oss-120B' in group:
         bar_widths.append(0.6)  # Narrower bars for OSS models
     else:
         bar_widths.append(0.8)  # Standard width for other models
@@ -130,10 +137,10 @@ for i, (pos, width) in enumerate(zip(x_positions, bar_widths)):
 # Customize x-axis labels - make them cleaner
 clean_labels = []
 for group in group_stats.index:
-    if 'OSS-20B' in group:
-        clean_labels.append(group.replace('OSS-20B (', '').replace(')', ''))
-    elif 'OSS-120B' in group:
-        clean_labels.append(group.replace('OSS-120B (', '').replace(')', ''))
+    if 'oss-20B' in group:
+        clean_labels.append(group.replace('gpt-oss-20B (', '').replace(')', ''))
+    elif 'oss-120B' in group:
+        clean_labels.append(group.replace('gpt-oss-120B (', '').replace(')', ''))
     else:
         clean_labels.append(group)
 
@@ -149,8 +156,8 @@ for i, (pos, mean_val) in enumerate(zip(x_positions, group_stats['mean'])):
              fontweight='bold', fontsize=9)
 
 # Add subtle group indicators using brackets for OSS models
-oss20b_positions = [pos for pos, group in zip(x_positions, group_names) if 'OSS-20B' in group]
-oss120b_positions = [pos for pos, group in zip(x_positions, group_names) if 'OSS-120B' in group]
+oss20b_positions = [pos for pos, group in zip(x_positions, group_names) if 'oss-20B' in group]
+oss120b_positions = [pos for pos, group in zip(x_positions, group_names) if 'oss-120B' in group]
 
 if oss20b_positions:
     # Draw a bracket pointing upward for OSS-20B bars
@@ -161,7 +168,7 @@ if oss20b_positions:
              'k-', linewidth=1, alpha=0.7, clip_on=False)
     plt.plot([max(oss20b_positions)+0.3, max(oss20b_positions)+0.3], [y_bracket, y_bracket+0.3], 
              'k-', linewidth=1, alpha=0.7, clip_on=False)
-    plt.text(np.mean(oss20b_positions), y_bracket-0.8, 'OSS-20B', ha='center', va='center',
+    plt.text(np.mean(oss20b_positions), y_bracket-0.8, 'gpt-oss-20B', ha='center', va='center',
              fontsize=10, color='black', clip_on=False)
 
 if oss120b_positions:
@@ -173,11 +180,19 @@ if oss120b_positions:
              'k-', linewidth=1, alpha=0.7, clip_on=False)
     plt.plot([max(oss120b_positions)+0.3, max(oss120b_positions)+0.3], [y_bracket, y_bracket+0.3], 
              'k-', linewidth=1, alpha=0.7, clip_on=False)
-    plt.text(np.mean(oss120b_positions), y_bracket-0.8, 'OSS-120B', ha='center', va='center',
+    plt.text(np.mean(oss120b_positions), y_bracket-0.8, 'gpt-oss-120B', ha='center', va='center',
              fontsize=10, color='black', clip_on=False)
 
 plt.tight_layout()
 # Adjust subplot to make room for brackets below (after tight_layout)
 plt.subplots_adjust(bottom=0.18)
-plt.savefig('ophthalmology_llm_results.png', dpi=300, bbox_inches='tight')
+
+# Create output directory and save figure
+output_dir = Path(__file__).parent / "output"
+output_dir.mkdir(parents=True, exist_ok=True)
+
+# Determine filename based on dataset
+dataset_name = "ophthalmology" if "Ophthalmology" in str(data_path) else "eurorad"
+output_path = output_dir / f'{dataset_name}_llm_results.png'
+plt.savefig(output_path, dpi=300, bbox_inches='tight')
 plt.show()

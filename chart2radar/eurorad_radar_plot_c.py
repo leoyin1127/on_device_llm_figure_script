@@ -9,7 +9,8 @@ sys.path.append(str(Path(__file__).parent))
 from radar_style import make_base_figure, color_pair, legend_label
 
 # Read the Eurorad CSV data
-df = pd.read_csv('chart2radar/data/OSS Benchmarking Results - Eurorad.csv')
+data_path = Path(__file__).parent / 'data' / 'OSS Benchmarking Results - Eurorad.csv'
+df = pd.read_csv(data_path)
 
 # Get model columns (excluding metadata columns)
 metadata_cols = ['case_id', 'Section', 'OriginalDescription', 'PostDescription', 
@@ -102,13 +103,16 @@ for group_name, accuracies in avg_accuracy_by_group.items():
 fig.update_layout(title=None)
 
 # Create output directory if it doesn't exist
-os.makedirs('chart2radar/output', exist_ok=True)
+output_dir = Path(__file__).parent / 'output'
+output_dir.mkdir(parents=True, exist_ok=True)
 
 # Save the figure
-fig.write_image("chart2radar/output/eurorad_radar_plot_c.png", scale=3, engine="kaleido")
+output_png = output_dir / "eurorad_radar_plot_c.png"
+output_html = output_dir / "eurorad_radar_plot_c.html"
+fig.write_image(str(output_png), scale=3, engine="kaleido")
 
 # Also save as interactive HTML
-fig.write_html("chart2radar/output/eurorad_radar_plot_c.html")
+fig.write_html(str(output_html))
 
 # Print summary statistics
 print("\n=== Model Performance Summary (Plot C) ===")
@@ -127,5 +131,5 @@ sorted_groups = sorted(overall_avg.items(), key=lambda x: x[1], reverse=True)
 for rank, (group, avg_acc) in enumerate(sorted_groups, 1):
     print(f"{rank}. {group}: {avg_acc:.2f}%")
 
-print("\nRadar plot saved to: chart2radar/output/eurorad_radar_plot_c.png")
-print("Interactive version saved to: chart2radar/output/eurorad_radar_plot_c.html")
+print(f"\nRadar plot saved to: {output_png}")
+print(f"Interactive version saved to: {output_html}")
