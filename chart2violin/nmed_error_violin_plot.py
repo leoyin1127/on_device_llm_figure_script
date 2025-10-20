@@ -16,9 +16,34 @@ def parse_nmed_csv(filename):
     header = lines[0].strip().split(',')
     model_columns = header[6:]  # Skip first 6 metadata columns
     
-    # Initialize error lists for each model
-    for model in model_columns:
-        model_errors[model.strip()] = []
+    # Create mapping of original columns to filtered columns
+    all_model_columns = header[6:]  # All original model columns
+    filtered_model_indices = []
+    filtered_model_names = []
+    
+    for idx, model in enumerate(all_model_columns):
+        model_clean = model.strip()
+        # Skip deepseek v2 and v3 (keep only v1)
+        if 'deepseek' in model_clean.lower() and ('-v2' in model_clean.lower() or '-v3' in model_clean.lower()):
+            continue
+        # Skip beam variants (we have regular oss20b (L) already)
+        if 'beam' in model_clean.lower():
+            continue
+        
+        # Rename deepseek-0528-v1 to deepseek-0528 (remove -v1 suffix)
+        if 'deepseek' in model_clean.lower() and '-v1' in model_clean.lower():
+            model_clean = model_clean.replace('-v1', '')
+        
+        # Remove -m1 suffix from gpt5 and o4-mini
+        if ('gpt5' in model_clean.lower() or 'o4-mini' in model_clean.lower()) and '-m1' in model_clean.lower():
+            model_clean = model_clean.replace('-m1', '')
+        
+        filtered_model_indices.append(idx)
+        filtered_model_names.append(model_clean)
+    
+    # Initialize error lists for each filtered model
+    for model in filtered_model_names:
+        model_errors[model] = []
     
     for i, line in enumerate(lines[1:], 1):  # Skip header
         line = line.strip()
@@ -53,11 +78,11 @@ def parse_nmed_csv(filename):
                 if human_score_str and re.match(r'^[0-9]*\.?[0-9]+$', human_score_str):
                     human_score = float(human_score_str)
                     
-                    # Calculate errors for each model
-                    for j, (model_col, model_score) in enumerate(zip(model_columns, scores)):
-                        if model_score is not None:
-                            error = human_score - model_score
-                            model_errors[model_col.strip()].append(error)
+                    # Calculate errors for each filtered model using original indices
+                    for idx, model_name in zip(filtered_model_indices, filtered_model_names):
+                        if idx < len(scores) and scores[idx] is not None:
+                            error = human_score - scores[idx]
+                            model_errors[model_name].append(error)
     
     return model_errors
 
@@ -94,15 +119,15 @@ def create_violin_plot(model_errors, title, filename, output_dir):
 
     # Update layout following the reference format
     fig.update_layout(showlegend=False)
-    fig.update_yaxes(range=[-4.1, 4.1])
+    fig.update_yaxes(range=[-4.1, 5.5])
     fig.update_layout(
         font=dict(family='times new roman', size=17, color="#000000"),
         width=1400,
         height=550,
         xaxis=dict(title=""),
         yaxis=dict(title="Error",
-                   tickvals=[-4, -3, -2, -1, 0, 1, 2, 3, 4],
-                   ticktext=["-4.00", "-3.00", "-2.00", "-1.00", "0.00", "1.00", "2.00", "3.00", "4.00"],
+                   tickvals=[-4, -3, -2, -1, 0, 1, 2, 3, 4, 5],
+                   ticktext=["-4.00", "-3.00", "-2.00", "-1.00", "0.00", "1.00", "2.00", "3.00", "4.00", "5.00"],
                    showticklabels=True),
         title=dict(text='')
     )
