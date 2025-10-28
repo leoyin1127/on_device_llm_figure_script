@@ -30,13 +30,36 @@ def parse_nmed_csv(filename):
         if 'beam' in model_clean.lower():
             continue
         
-        # Rename deepseek-0528-v1 to deepseek-0528 (remove -v1 suffix)
-        if 'deepseek' in model_clean.lower() and '-v1' in model_clean.lower():
-            model_clean = model_clean.replace('-v1', '')
+        # Standardize model names to match barplot naming conventions
+        # 1. GPT-5: gpt5-0807-m1 -> gpt-5
+        if 'gpt5' in model_clean.lower():
+            model_clean = 'gpt-5'
         
-        # Remove -m1 suffix from gpt5 and o4-mini
-        if ('gpt5' in model_clean.lower() or 'o4-mini' in model_clean.lower()) and '-m1' in model_clean.lower():
-            model_clean = model_clean.replace('-m1', '')
+        # 2. o4-mini: o4-mini-m1 -> gpt-o4-mini
+        elif 'o4-mini' in model_clean.lower():
+            model_clean = 'gpt-o4-mini'
+        
+        # 3. DeepSeek: deepseek-0528-v1 or deepseek-r1-0528-v1 -> deepseek-r1-0528
+        elif 'deepseek' in model_clean.lower():
+            model_clean = 'deepseek-r1-0528'
+        
+        # 4. OSS models: oss20b (L) -> gpt-oss-20B (L), etc.
+        elif 'oss20b' in model_clean.lower():
+            if '(l)' in model_clean.lower():
+                model_clean = 'gpt-oss-20B (L)'
+            elif '(m)' in model_clean.lower():
+                model_clean = 'gpt-oss-20B (M)'
+            elif '(h)' in model_clean.lower():
+                model_clean = 'gpt-oss-20B (H)'
+        
+        # 5. OSS 120B models: oss120b (L) -> gpt-oss-120B (L), etc.
+        elif 'oss120b' in model_clean.lower():
+            if '(l)' in model_clean.lower():
+                model_clean = 'gpt-oss-120B (L)'
+            elif '(m)' in model_clean.lower():
+                model_clean = 'gpt-oss-120B (M)'
+            elif '(h)' in model_clean.lower():
+                model_clean = 'gpt-oss-120B (H)'
         
         filtered_model_indices.append(idx)
         filtered_model_names.append(model_clean)
@@ -121,9 +144,11 @@ def create_violin_plot(model_errors, title, filename, output_dir):
     fig.update_layout(showlegend=False)
     fig.update_yaxes(range=[-4.1, 5.5])
     fig.update_layout(
-        font=dict(family='times new roman', size=17, color="#000000"),
+        font=dict(family='Times New Roman', size=17, color="#000000"),
         width=1400,
         height=550,
+        paper_bgcolor="#FFFFFF",
+        plot_bgcolor="#FFFFFF",
         xaxis=dict(title=""),
         yaxis=dict(title="Error",
                    tickvals=[-4, -3, -2, -1, 0, 1, 2, 3, 4, 5],

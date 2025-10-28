@@ -1,77 +1,82 @@
 from __future__ import annotations
 
-from typing import Dict, Iterable, List, Tuple
+from textwrap import wrap
+from typing import Dict, Iterable, List, Sequence, Tuple
 
-import plotly.graph_objects as go
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 FONT_FAMILY = "Times New Roman"
 
+# Pure white canvas with muted neutral gridlines
+PAPER_BG_COLOR = "#FFFFFF"
+PLOT_BG_COLOR = "#FFFFFF"
+GRID_COLOR_MAJOR = mpl.colors.to_rgba("#CBD1D6", 0.85)
+GRID_COLOR_MINOR = mpl.colors.to_rgba("#D9DEE3", 0.45)
 
-"""Legend and color helpers for consistent plotting.
+mpl.rcParams.update(
+    {
+        "font.family": FONT_FAMILY,
+        "font.serif": [FONT_FAMILY],
+        "figure.facecolor": PAPER_BG_COLOR,
+        "axes.facecolor": PLOT_BG_COLOR,
+        "savefig.facecolor": PAPER_BG_COLOR,
+        "axes.titlesize": 20,
+        "axes.labelsize": 15,
+        "xtick.labelsize": 12.5,
+        "ytick.labelsize": 11.5,
+        "figure.autolayout": False,
+    }
+)
 
-Note: Section labels should be used exactly as they appear in the CSV.
-No abbreviation or wrapping helpers are provided here on purpose.
-"""
+"""Legend and color helpers for consistent plotting."""
 
 
-# Consistent palette across figures
+# Harmonised palette matching the provided reference style
 LINE_COLORS: Dict[str, str] = {
-    # Baselines / families
-    "gpt-5": "#d62728",
-    "GPT-5": "#d62728",
-    "gpt-o4": "#1f77b4",
-    "gpt-o4-mini": "#1f77b4",
-    "ChatGPT-4o": "#1f77b4",
-    "DeepSeek-R1-0528": "#e377c2",
-    "DeepSeek": "#e377c2",
-    "Qwen3-235B": "#2ca02c",
-    "Qwen3": "#2ca02c",
-    # OSS-20B family (warm oranges)
-    "gpt-oss-20B": "#ff6e40",
-    "gpt-oss-20B (L)": "#ffb347",
-    "gpt-oss-20B (M)": "#ffd166",
-    "gpt-oss-20B (H)": "#ff6e40",
-    "OSS-20B (L)": "#ffb347",
-    "OSS-20B (M)": "#ffd166",
-    "OSS-20B (H)": "#ff6e40",
-    # OSS-120B family (purples)
-    "gpt-oss-120B": "#9400d3",
-    "gpt-oss-120B (L)": "#4b0082",
-    "gpt-oss-120B (M)": "#8a2be2",
-    "gpt-oss-120B (H)": "#9400d3",
-    "OSS-120B (L)": "#4b0082",
-    "OSS-120B (M)": "#8a2be2",
-    "OSS-120B (H)": "#9400d3",
+    # Baselines / families mapped onto the 4-colour scheme
+    "gpt-5": "#F28E8C",  # UNI coral
+    "GPT-5": "#F28E8C",
+    "gpt-o4-mini": "#56B3C4",  # REMEDIS teal
+    "gpt-o4": "#56B3C4",
+    "ChatGPT-4o": "#56B3C4",
+    "deepseek-r1-0528": "#E6C24F",  # CTransPath sunflower
+    "DeepSeek-R1-0528": "#E6C24F",
+    "DeepSeek": "#E6C24F",
+    "Qwen3-235B": "#B88FD6",  # ResNet-50 lilac
+    "Qwen3": "#B88FD6",
+    # OSS ladders inherit softened variants
+    "gpt-oss-20B": "#F6A69F",
+    "gpt-oss-20B (L)": "#F9B8B2",
+    "gpt-oss-20B (M)": "#F49389",
+    "gpt-oss-20B (H)": "#ED7C72",
+    "OSS-20B (L)": "#F9B8B2",
+    "OSS-20B (M)": "#F49389",
+    "OSS-20B (H)": "#ED7C72",
+    "gpt-oss-120B": "#C7A3E1",
+    "gpt-oss-120B (L)": "#D6B8E9",
+    "gpt-oss-120B (M)": "#C59BDD",
+    "gpt-oss-120B (H)": "#B280D1",
+    "OSS-120B (L)": "#D6B8E9",
+    "OSS-120B (M)": "#C59BDD",
+    "OSS-120B (H)": "#B280D1",
 }
 
 
-def _rgba(hex_color: str, alpha: float) -> str:
-    hex_color = hex_color.lstrip("#")
-    r = int(hex_color[0:2], 16)
-    g = int(hex_color[2:4], 16)
-    b = int(hex_color[4:6], 16)
-    return f"rgba({r}, {g}, {b}, {alpha})"
+def color_pair(name: str) -> Tuple[str, Tuple[float, float, float, float]]:
+    """Return a publication-friendly line/fill colour pairing."""
 
-
-def color_pair(name: str, fill_alpha: float = 0.15) -> Tuple[str, str]:
-    line = LINE_COLORS.get(name, "#7f7f7f")
-    return line, _rgba(line, fill_alpha)
+    line = LINE_COLORS.get(name, "#7F7F7F")
+    rgba = mpl.colors.to_rgba(line, 0.22)
+    return line, rgba
 
 
 def legend_label(name: str) -> str:
-    """Normalize model names to standard legend labels, preserving L/M/H.
+    """Normalise model names to standard legend labels, preserving L/M/H."""
 
-    Standard families:
-      - gpt-5
-      - gpt-o4 (covers ChatGPT-4o, gpt-o4-mini, etc.)
-      - DeepSeek-R1-0528
-      - Qwen3-235B
-      - gpt-oss-20B (+ optional (L|M|H))
-      - gpt-oss-120B (+ optional (L|M|H))
-    """
     key = name.lower()
-    # Variants (keep the suffix if present)
     variant = None
     if "(l)" in key:
         variant = " (L)"
@@ -83,9 +88,9 @@ def legend_label(name: str) -> str:
     if "gpt-5" in key:
         return "gpt-5"
     if "chatgpt-4o" in key or "chatgpt4o" in key or "o4" in key:
-        return "gpt-o4"
+        return "gpt-o4-mini"
     if "deepseek" in key:
-        return "DeepSeek-R1-0528"
+        return "deepseek-r1-0528"
     if "qwen3" in key:
         return "Qwen3-235B"
     if "oss-20b" in key:
@@ -95,62 +100,121 @@ def legend_label(name: str) -> str:
     return name
 
 
-def make_base_figure(theta_labels: List[str], width: int = 1900, height: int = 1200) -> go.Figure:
-    """Create a standardized polar figure with consistent layout.
+def format_section_labels(
+    labels: Iterable[str],
+    line_length: int = 26,
+    line_break: str = "\n",
+) -> List[str]:
+    """Wrap long section names for polar axes."""
 
-    - Legend space on the right; domain set to avoid overlap
-    - Ticks at 0..100
-    - Wrapped angular tick labels
-    """
-    fig = go.Figure(
-        layout=go.Layout(
-            template="plotly_white",
-            width=width,
-            height=height,
-            # Wider right margin for legend; compact left
-            margin=dict(l=100, r=250, t=80, b=90),
-            font=dict(family=FONT_FAMILY, size=16, color="#000"),
-            # Place legend to the right, fully outside the polar domain
-            legend=dict(
-                orientation="v",
-                x=1.02,
-                y=1.0,
-                xanchor="left",
-                yanchor="top",
-                bgcolor="rgba(255,255,255,0.9)",
-                bordercolor="#eee",
-                borderwidth=1,
-                font=dict(size=11),
-                tracegroupgap=8,
-            ),
-            polar=dict(
-                # Wider polar domain; legend sits in reserved right margin
-                domain=dict(x=[0.02, 0.75], y=[0.02, 0.98]),
-                bgcolor="rgba(0,0,0,0)",
-                radialaxis=dict(
-                    showline=False,
-                    ticks="",
-                    gridcolor="rgba(0,0,0,0.15)",
-                    tickvals=[0, 20, 40, 60, 80],
-                    range=[0, 100],
-                    tickfont=dict(size=11),
-                    angle=90,
-                ),
-                angularaxis=dict(
-                    rotation=90,
-                    direction="clockwise",
-                    gridcolor="rgba(0,0,0,0.15)",
-                    tickfont=dict(size=12),
-                    showticklabels=True,
-                    categoryorder="array",
-                    categoryarray=theta_labels,
-                ),
-            ),
-        )
+    formatted: List[str] = []
+    for label in labels:
+        if len(label) <= line_length:
+            formatted.append(label)
+            continue
+        wrapped = wrap(label, width=line_length, break_long_words=False, drop_whitespace=False)
+        formatted.append(line_break.join(wrapped))
+    return formatted
+
+
+def make_base_axes(
+    theta_labels: Sequence[str],
+    radial_tickvals: Sequence[int] | None = None,
+) -> Tuple[plt.Figure, plt.Axes, np.ndarray]:
+    """Create a polar axis tuned for camera-ready output."""
+
+    num_axes = len(theta_labels)
+    if num_axes < 3:
+        raise ValueError("Radar plots require at least three categories.")
+
+    angles = np.linspace(0, 2 * np.pi, num_axes, endpoint=False)
+
+    fig = plt.figure(figsize=(12.5, 12.5))
+    fig.patch.set_facecolor(PAPER_BG_COLOR)
+
+    ax = fig.add_subplot(111, polar=True)
+    ax.set_facecolor(PLOT_BG_COLOR)
+    ax.set_theta_offset(np.pi / 2)
+    ax.set_theta_direction(-1)
+
+    ax.set_xticks(angles)
+    ax.set_xticklabels([""] * num_axes)
+    ax.tick_params(axis="x", pad=0, labelsize=0)
+
+    tickvals = list(radial_tickvals or [0, 20, 40, 60, 80, 100])
+    max_tick = max(tickvals)
+    ax.set_ylim(0, max_tick)
+    ax.set_yticks(tickvals)
+    ax.set_yticklabels(
+        [f"{tick:g}" for tick in tickvals],
+        color="#5B616B",
+        ha="center",
+        va="center",
     )
-    return fig
+    ax.tick_params(axis="y", labelsize=11.5, colors="#5B616B", pad=8)
+    ax.set_rlabel_position(90)
+    for label in ax.get_yticklabels():
+        label.set_fontweight("regular")
+        label.set_bbox(None)
+
+    ax.set_axisbelow(True)
+    ax.grid(True, which="major", color=GRID_COLOR_MAJOR, linewidth=1.1, linestyle="-")
+    ax.grid(True, which="minor", color=GRID_COLOR_MINOR, linewidth=0.7, linestyle="-")
+    ax.spines["polar"].set_edgecolor("#C0C7CE")
+    ax.spines["polar"].set_linewidth(1.1)
+
+    return fig, ax, angles
 
 
-def add_angular_labels(fig: go.Figure, labels: List[str], radius: float = 104, size: int = 16) -> None:
-    # No-op now; kept for potential future use without breaking imports
+def add_angular_labels(*args, **kwargs) -> None:
+    # Legacy no-op preserved for compatibility with earlier scripts
     return None
+
+
+def place_section_labels(ax: plt.Axes, angles: np.ndarray, labels: Sequence[str]) -> None:
+    """Position section labels with angle-aware padding to avoid polygon overlap."""
+
+    transform = ax.get_xaxis_transform()
+    base_offset = 0.97
+    horizontal_boost = 0.08
+    vertical_boost = 0.06
+
+    for angle, label in zip(angles, labels):
+        # Due to theta offset, sin(angle) maps to Cartesian x, cos(angle) to y
+        x_component = np.sin(angle)
+        y_component = np.cos(angle)
+
+        radial = base_offset + horizontal_boost * abs(x_component) + vertical_boost * abs(y_component)
+
+        if x_component > 0.3:
+            h_align = "left"
+        elif x_component < -0.3:
+            h_align = "right"
+        else:
+            h_align = "center"
+
+        if y_component > 0.4:
+            v_align = "bottom"
+        elif y_component < -0.4:
+            v_align = "top"
+        else:
+            v_align = "center"
+
+        text = ax.text(
+            angle,
+            radial,
+            label,
+            ha=h_align,
+            va=v_align,
+            color="#364152",
+            fontsize=13,
+            bbox=dict(
+                facecolor="#FFFFFF",
+                edgecolor="#B8C3CE",
+                linewidth=1.5,
+                boxstyle="round,pad=0.35",
+            ),
+            zorder=10,
+            transform=transform,
+        )
+        text.set_clip_on(False)
